@@ -1,11 +1,11 @@
 {
-	"id": "obsidian-sample-plugin",
-	"name": "Sample Plugin",
-	"version": "1.0.0",
+	"id": "obsidian-gpt-assistant",
+	"name": "GPT Assistant",
+	"version": "0.1.0",
 	"minAppVersion": "0.15.0",
-	"description": "This is a sample plugin for Obsidian. This plugin demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"description": "Train a GPT-3 based model on your notes and get personalized answers based on your knowledge base.",
+	"author": "M7mdisk",
+	"authorUrl": "https://github.com/M7mdisk",
+	"fundingUrl": "https://github.com/M7mdisk",
 	"isDesktopOnly": false
 }

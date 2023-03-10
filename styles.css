@@ -6,3 +6,13 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+
+.prompt_in {
+	width: 100%;
+	resize: vertical;
+}
+
+.answer {
+	margin-top: 20px;
+	height: 250px;
+}
