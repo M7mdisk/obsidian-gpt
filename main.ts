@@ -30,7 +30,7 @@ export default class MyPlugin extends Plugin {
 
 		this.assistant = new Assistant(this.settings.apiKey);
 		if (await this.hasCachedData()) {
-			let { searchable } = await this.loadData();
+			const { searchable } = await this.loadData();
 			this.saveNamedData("searchable", searchable);
 			this.assistant.setData(searchable);
 		}
@@ -61,7 +61,7 @@ export default class MyPlugin extends Plugin {
 
 	private async hasCachedData(): Promise<boolean> {
 		const data = await this.loadData();
-		return data.searchable && data.searchable.length;
+		return data && data.searchable && data.searchable.length;
 	}
 
 	async loadEmbeddingsToAssistant() {
@@ -85,7 +85,7 @@ export default class MyPlugin extends Plugin {
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
-			(await this.loadData()).settings
+			(await this.loadData())?.settings ?? {}
 		);
 	}
 
@@ -188,7 +188,7 @@ class AssistantSettings extends PluginSettingTab {
 				btn.setButtonText("Process").setCta();
 
 				btn.onClick(async (e) => {
-					if (this.plugin.settings.apiKey == "") {
+					if (this.plugin?.settings?.apiKey == "") {
 						new Notice("Please provide an API Key");
 						return;
 					}
