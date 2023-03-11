@@ -1,9 +1,9 @@
 {
-	"id": "obsidian-gpt-assistant",
+	"id": "gpt-assistant",
 	"name": "GPT Assistant",
-	"version": "0.1.0",
+	"version": "0.1.2",
 	"minAppVersion": "0.15.0",
-	"description": "Train a GPT-3 based model on your notes and get personalized answers based on your knowledge base.",
+	"description": "Use a GPT-3 based model on your notes and get personalized answers from your knowledge base.",
 	"author": "M7mdisk",
 	"authorUrl": "https://github.com/M7mdisk",
 	"fundingUrl": "https://github.com/M7mdisk",
