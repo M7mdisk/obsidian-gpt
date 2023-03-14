@@ -1,6 +1,6 @@
 import { Configuration, OpenAIApi } from "openai";
 import GPT3Tokenizer from "gpt3-tokenizer";
-import { cosineSimilarity } from "utils";
+import { cosineSimilarity } from "./utils";
 
 export interface chunkData {
 	text: string;

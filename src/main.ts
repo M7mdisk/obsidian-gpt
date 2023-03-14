@@ -1,8 +1,6 @@
-import { Answer, Assistant } from "assistant";
+import { Answer, Assistant } from "./assistant";
 import {
 	App,
-	Component,
-	MarkdownPreviewRenderer,
 	MarkdownRenderer,
 	Modal,
 	Notice,
@@ -11,18 +9,17 @@ import {
 	Setting,
 	TextAreaComponent,
 } from "obsidian";
-// TODO: Remember to rename these classes and interfaces!
 
-interface MyPluginSettings {
+interface PluginSettings {
 	apiKey: string;
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
+const DEFAULT_SETTINGS: PluginSettings = {
 	apiKey: "",
 };
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class GPTAssistantPlugin extends Plugin {
+	settings: PluginSettings;
 	assistant: Assistant;
 	async onload() {
 		this.addSettingTab(new AssistantSettings(this.app, this));
@@ -152,9 +149,9 @@ class AskAssistantModal extends Modal {
 }
 
 class AssistantSettings extends PluginSettingTab {
-	plugin: MyPlugin;
+	plugin: GPTAssistantPlugin;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: GPTAssistantPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
