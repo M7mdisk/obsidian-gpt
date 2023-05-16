@@ -1,7 +1,7 @@
 {
 	"id": "gpt-assistant",
 	"name": "GPT Assistant",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"minAppVersion": "0.15.0",
 	"description": "Use a GPT-3 based model on your notes and get personalized answers from your knowledge base.",
 	"author": "M7mdisk",
