@@ -5,9 +5,15 @@ import { cosineSimilarity } from "./utils";
 export interface chunkData {
 	text: string;
 	embeddings: number[];
+	sha1: string;
 }
 
 export type EmbeddedData = chunkData[];
+
+export interface CachedData {
+	searchable: EmbeddedData;
+	sha: Array<string>;
+}
 
 export type Answer = { error: boolean; text: string };
 export class Assistant {
@@ -78,13 +84,20 @@ export class Assistant {
 		};
 	}
 
-	prepareTexts(texts: string[]): string[] {
-		let shortened: string[] = [];
-		texts.forEach((text) => {
+	prepareTexts(texts: EmbeddedData): EmbeddedData {
+		let shortened: EmbeddedData = [];
+		texts.forEach((item) => {
+			const text = item.text;
 			if (this.tokenizer.encode(text).bpe.length > this.MAX_TOKENS) {
-				shortened = shortened.concat(this.splitIntoMany(text));
+				shortened = shortened.concat(this.splitIntoMany(text).map(t => {
+					return {
+						text: t,
+						embeddings: [],
+						sha1: item.sha1,
+					}
+				}));
 			} else {
-				shortened.push(text);
+				shortened.push(item);
 			}
 		});
 		return shortened;
@@ -112,14 +125,15 @@ export class Assistant {
 		});
 		return chunks;
 	}
-	async createEmbeddings(data: string[]): Promise<EmbeddedData> {
+	async createEmbeddings(data: EmbeddedData): Promise<EmbeddedData> {
 		const embeddings = await this.openai.createEmbedding({
-			input: data,
+			input: data.map((d) => d.text),
 			model: "text-embedding-ada-002",
 		});
-		return data.map((text, idx) => ({
-			text,
+		return data.map((d, idx) => ({
+			text: d.text,
 			embeddings: embeddings.data.data[idx].embedding,
+			sha1: d.sha1,
 		}));
 	}
 }
