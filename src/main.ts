@@ -13,10 +13,12 @@ import {
 
 interface PluginSettings {
 	apiKey: string;
+	autoUpdate: boolean;
 }
 
 const DEFAULT_SETTINGS: PluginSettings = {
 	apiKey: "",
+	autoUpdate: false,
 };
 
 export default class GPTAssistantPlugin extends Plugin {
@@ -46,7 +48,9 @@ export default class GPTAssistantPlugin extends Plugin {
 					new Notice("Please provide an API Key in the settings");
 					return;
 				}
-				this.loadEmbeddingsToAssistant(); // async update embedding
+				if (this.settings.autoUpdate) {
+					this.loadEmbeddingsToAssistant(); // async update embedding
+				}
 				new AskAssistantModal(this.app, async (question) => {
 					const answer = await this.assistant.answerQuestion(
 						question
@@ -237,6 +241,18 @@ class AssistantSettings extends PluginSettingTab {
 					})
 			);
 
+		new Setting(containerEl)
+			.setName("Automatically update")
+			.setDesc("Automatically load new notes into the assistant")
+			.addToggle((tg) => {
+				tg.setValue(this.plugin.settings.autoUpdate);
+				tg.onChange(async (value) => {
+					this.plugin.settings.autoUpdate = value;
+					await this.plugin.saveSettings();
+					new Notice("updated");
+				});
+			})
+		
 		new Setting(containerEl)
 			.setName("Process notes")
 			.setDesc("Load all your notes into the assistant")
