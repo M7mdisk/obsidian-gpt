@@ -52,10 +52,18 @@ export default class GPTAssistantPlugin extends Plugin {
 					this.loadEmbeddingsToAssistant(); // async update embedding
 				}
 				new AskAssistantModal(this.app, async (question) => {
-					const answer = await this.assistant.answerQuestion(
-						question
-					);
-					return answer ?? "";
+					try {
+						const answer = await this.assistant.answerQuestion(
+							question
+						);
+						return answer;
+					} catch (e) {
+						if (e.response) {
+							console.log(e.response)
+							new Notice("❌ " + e.response.data.error.message)
+						}
+						return { error: true, text: "" }
+					}
 				}).open();
 			},
 		});
@@ -124,11 +132,20 @@ export default class GPTAssistantPlugin extends Plugin {
 		let searchable = oldSearchable.filter((e) => oldSha.has(e.sha1) && newSha.has(e.sha1));
 		if (fileContents.length) { // create embeddings for new/updated files
 			const chunks = this.assistant.prepareTexts(fileContents);
-			const newSearchable = await this.assistant.createEmbeddings(chunks);
-			searchable = newSearchable.concat(searchable);
+			try {
+				const newSearchable = await this.assistant.createEmbeddings(chunks);
+				searchable = newSearchable.concat(searchable);
+				new Notice("Your data has been loaded into the model.");
+
+			} catch (e) {
+				if (e.response) {
+					console.log(e.response)
+					new Notice("❌ " + e.response.data.error.message)
+				}
+			}
 		}
 
-		this.saveNamedDataV2({
+		this.saveNamedData({
 			"searchable": searchable,
 			"sha": Array.from(newSha),
 		});
@@ -153,11 +170,7 @@ export default class GPTAssistantPlugin extends Plugin {
 		});
 	}
 
-	async saveNamedData(name: string, data: unknown) {
-		await this.saveData({ ...(await this.loadData()), [name]: data });
-	}
-
-	async saveNamedDataV2(data: CachedData) {
+	async saveNamedData(data: CachedData) {
 		await this.saveData({ ...(await this.loadData()), ...data });
 	}
 }
@@ -249,10 +262,9 @@ class AssistantSettings extends PluginSettingTab {
 				tg.onChange(async (value) => {
 					this.plugin.settings.autoUpdate = value;
 					await this.plugin.saveSettings();
-					new Notice("updated");
 				});
 			})
-		
+
 		new Setting(containerEl)
 			.setName("Process notes")
 			.setDesc("Load all your notes into the assistant")
@@ -269,7 +281,6 @@ class AssistantSettings extends PluginSettingTab {
 					);
 					await this.plugin.loadEmbeddingsToAssistant();
 
-					new Notice("Your data has been loaded into the model.");
 				});
 			});
 	}
