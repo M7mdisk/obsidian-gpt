@@ -1,4 +1,5 @@
-import { Answer, Assistant } from "./assistant";
+import { Answer, Assistant, EmbeddedData, CachedData } from "./assistant";
+import { sha1File } from "./utils";
 import {
 	App,
 	MarkdownRenderer,
@@ -12,10 +13,12 @@ import {
 
 interface PluginSettings {
 	apiKey: string;
+	autoUpdate: boolean;
 }
 
 const DEFAULT_SETTINGS: PluginSettings = {
 	apiKey: "",
+	autoUpdate: false,
 };
 
 export default class GPTAssistantPlugin extends Plugin {
@@ -28,7 +31,6 @@ export default class GPTAssistantPlugin extends Plugin {
 		this.assistant = new Assistant(this.settings.apiKey);
 		if (await this.hasCachedData()) {
 			const { searchable } = await this.loadData();
-			this.saveNamedData("searchable", searchable);
 			this.assistant.setData(searchable);
 		}
 
@@ -46,12 +48,40 @@ export default class GPTAssistantPlugin extends Plugin {
 					new Notice("Please provide an API Key in the settings");
 					return;
 				}
+				if (this.settings.autoUpdate) {
+					this.loadEmbeddingsToAssistant(); // async update embedding
+				}
 				new AskAssistantModal(this.app, async (question) => {
-					const answer = await this.assistant.answerQuestion(
-						question
-					);
-					return answer ?? "";
+					try {
+						const answer = await this.assistant.answerQuestion(
+							question
+						);
+						return answer;
+					} catch (e) {
+						if (e.response) {
+							console.error(e.response)
+							new Notice("❌ " + e.response.data.error.message)
+						}
+						return { error: true, text: "" }
+					}
 				}).open();
+			},
+		});
+
+		this.addCommand({
+			id: "update-assistant",
+			name: "Update assistant",
+			callback: async () => {
+				if (!this.settings.apiKey) {
+					new Notice("Please provide an API Key in the settings");
+					return;
+				}
+				new Notice(
+					"Loading data into model. this could take a while..."
+				);
+				await this.loadEmbeddingsToAssistant();
+				new Notice("Your data has been loaded into the model.");
+
 			},
 		});
 	}
@@ -61,22 +91,68 @@ export default class GPTAssistantPlugin extends Plugin {
 		return data && data.searchable && data.searchable.length;
 	}
 
+	private async loadCachedData(): Promise<CachedData> {
+		const data = await this.loadData();
+		if (data && data.searchable && data.searchable.length &&
+			data.sha && data.sha.length) {
+			return {
+				searchable: data.searchable,
+				sha: data.sha,
+			}
+		}
+		return {
+			searchable: [],
+			sha: [],
+		}
+	}
+
 	async loadEmbeddingsToAssistant() {
 		const { vault } = this.app;
-		const fileContents: string[] = await Promise.all(
+		const cachedData = await this.loadCachedData();
+		const oldSearchable = cachedData.searchable;
+		const oldSha = new Set<string>(cachedData.sha);
+		const newSha = new Set<string>();
+
+		// Load new/updated file contents
+		const fileContents: EmbeddedData = (await Promise.all(
 			vault
 				.getMarkdownFiles()
-				.map((file) =>
-					vault.cachedRead(file).then((res) => file.name + res)
-				)
-		);
-		const chunks = await this.assistant.prepareTexts(fileContents);
-		const searchable = await this.assistant.createEmbeddings(chunks);
-		this.saveNamedData("searchable", searchable);
+				.map((file) => {
+					const sha1 = sha1File(file);
+					newSha.add(sha1);
+					if (oldSha.has(sha1)) { // file doesn't change
+						return { text: '', embeddings: [], sha1: sha1 };
+					}
+					return vault.cachedRead(file).then((res) => {
+						return { text: file.name + res, embeddings: [], sha1: sha1 }
+					})
+				})
+		)).filter(f => f.text.length);
+
+		let searchable = oldSearchable.filter((e) => oldSha.has(e.sha1) && newSha.has(e.sha1));
+		if (fileContents.length) { // create embeddings for new/updated files
+			const chunks = this.assistant.prepareTexts(fileContents);
+			try {
+				const newSearchable = await this.assistant.createEmbeddings(chunks);
+				searchable = newSearchable.concat(searchable);
+				new Notice("Your data has been loaded into the model.");
+
+			} catch (e) {
+				if (e.response) {
+					console.error(e.response)
+					new Notice("❌ " + e.response.data.error.message)
+				}
+			}
+		}
+
+		this.saveNamedData({
+			"searchable": searchable,
+			"sha": Array.from(newSha),
+		});
 		this.assistant.setData(searchable);
 	}
 
-	onunload() {}
+	onunload() { }
 
 	async loadSettings() {
 		this.settings = Object.assign(
@@ -94,8 +170,8 @@ export default class GPTAssistantPlugin extends Plugin {
 		});
 	}
 
-	async saveNamedData(name: string, data: unknown) {
-		await this.saveData({ ...(await this.loadData()), [name]: data });
+	async saveNamedData(data: CachedData) {
+		await this.saveData({ ...(await this.loadData()), ...data });
 	}
 }
 
@@ -179,6 +255,17 @@ class AssistantSettings extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName("Automatically update")
+			.setDesc("Automatically load new notes into the assistant")
+			.addToggle((tg) => {
+				tg.setValue(this.plugin.settings.autoUpdate);
+				tg.onChange(async (value) => {
+					this.plugin.settings.autoUpdate = value;
+					await this.plugin.saveSettings();
+				});
+			})
+
+		new Setting(containerEl)
 			.setName("Process notes")
 			.setDesc("Load all your notes into the assistant")
 			.addButton((btn) => {
@@ -194,7 +281,6 @@ class AssistantSettings extends PluginSettingTab {
 					);
 					await this.plugin.loadEmbeddingsToAssistant();
 
-					new Notice("Your data has been loaded into the model.");
 				});
 			});
 	}
